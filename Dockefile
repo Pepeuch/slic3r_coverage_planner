@@ -1,0 +1,77 @@
+# Utiliser une image de base ROS Noetic
+FROM ros:noetic-ros-base
+
+# Installer les dépendances nécessaires
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    git \
+    ros-noetic-catkin \
+    ros-noetic-geometry-msgs \
+    ros-noetic-nav-msgs \
+    ros-noetic-roscpp \
+    ros-noetic-std-msgs \
+    ros-noetic-tf2 \
+    ros-noetic-tf2-geometry-msgs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Créer un espace de travail catkin
+WORKDIR /root/catkin_ws/src
+RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && catkin_init_workspace"
+
+# Copier le code source dans le conteneur
+COPY . /root/catkin_ws/src/slic3r_coverage_planner
+
+# Construire le projet
+WORKDIR /root/catkin_ws
+RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && catkin_make"
+
+# Source de l'environnement ROS
+RUN echo "source /root/catkin_ws/devel/setup.bash" >> /root/.bashrc
+LABEL version="v1.0.0-beta.2"
+
+# Reference:
+# https://blueos.cloud/docs/blueos/1.2/development/extensions
+# https://docs.docker.com/engine/api/v1.41/#tag/Container/operation/ContainerCreate
+LABEL permissions='\
+{\
+  "ExposedPorts": {\
+    "8080/tcp": {},\
+  },\
+  "HostConfig": {\
+    "ExtraHosts": ["host.docker.internal:host-gateway"],\
+    "PortBindings": {\
+      "8080/tcp": [\
+        {\
+          "HostPort": ""\
+        }\
+      ]\
+    }\
+  },\
+  "Env": [\
+    "MAVLINK2REST_URL=http://host.docker.internal/mavlink2rest/v1",\
+  ],\
+}'
+LABEL authors='[\
+    {\
+        "name": "Clemens Elflein",\
+        "email": "clemens1@familie-elflein.de"\
+    }\
+]'
+LABEL company='{\
+        "about": "",\
+        "name": "https://x-tech.online/",\
+        "email": "clemens1@familie-elflein.de"\
+    }'
+LABEL type="tool"
+LABEL tags='[\
+    "Slic3r coverage Planer",\
+]'
+LABEL readme='https://github.com/ClemensElflein/slic3r_coverage_planner/blob/main/README.md'
+LABEL links='{\
+    "website": "https://github.com/ClemensElflein/slic3r_coverage_planner",\
+    "support": "https://github.com/ClemensElflein/slic3r_coverage_planner/issues"\
+}'
+LABEL requirements="core >= 1.1"
+
+ENTRYPOINT cd /app && python main.py --mavlink2rest_url $MAVLINK2REST_URL
